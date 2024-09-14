@@ -1,26 +1,59 @@
-标题,内容,发帖时间,URL地址,IP属地
-"四年前我对鸿蒙是谨慎乐观，现在则是非常看好。由于完全脱离了安卓，从底层构建，纯血鸿蒙的代码简洁性和系统性能都有显著提升。据称鸿蒙next比鸿蒙4.0性能提升30%，这相当于两代芯片的提升。
+import math
 
-但更可喜的是以后每年还会提升20-30%。做到这点意味着，使用相同的硬件，鸿蒙终端不仅不会越用越卡，而是通过软件升级，做到相当于每年升级一代芯片的提升。未来流畅度超越苹果IOS我一点不会惊讶。
 
-这种系统和应用的性能持续提升，应该是通过去除计算冗余，超线程等技术优化，以及操作系统层面的AI任务管理等方法实现。
+class Graph(object):
+    def __init__(self, maps):
+        self.maps = maps
+        self.nodenum = len(self.maps)
+        self.edgenum = self.get_edgenum()
 
-不过，鸿蒙的应用广度还要爬坡很久很久。今年能完成5000多个鸿蒙化的常用应用，虽然这可以覆盖国内用户99.9%的使用体验，但比起苹果和安卓千万数量级的应用还是九牛一毛。
-​
-现在有两个问题。一是鸿蒙微信何时能够谈拢。这个主要是利益分配和控制权的博弈，考虑到mate70会搭载鸿蒙next，最后华为可能做出一些让步。
+    def get_edgenum(self):
+        count = 0
+        for i in range(self.nodenum):
+            for j in range(i):
+                if self.maps[i][j] > 0 and self.maps[i][j] < 9999:
+                    count += 1
+        return count
 
-二是​鸿蒙next无法调用安卓的应用，所以将鸿蒙4.0升级到next将有少量应用无法打开。不知道next会不会提供虚拟运行方式，确保未被鸿蒙化的app能够在牺牲性能的代价下保持运行。​还有就是把如mate40换成装载鸿蒙next的mate70，能否使用一键克隆以保持使用连续性。
-​    
-鸿蒙已经将AI整合到操作系统底层，而不是使用外挂的方式运行AI。很期待这是否能带来一些体验上的惊喜。
+    def kruskal(self):
+        max_distance = -1
+        res = []
+        if self.nodenum <= 0 or self.edgenum < self.nodenum - 1:
+            return res
+        edge_list = []
+        for i in range(self.nodenum):
+            for j in range(i, self.nodenum):
+                if self.maps[i][j] < 9999:
+                    edge_list.append([i, j, self.maps[i][j]])  # 按[begin, end, weight]形式加入
+        edge_list.sort(key=lambda a: a[2])  # 已经排好序的边集合
 
-鸿蒙能够取得成功，离不开中国巨大的电子消费品市场和庞大的信息技术人才规模，这背后是中国14亿的人口基数。当然，如果没有美国无底线的打压，华为也不太会有动力在如此短的时间里上诉到技术数的低端。
+        group = [[i] for i in range(self.nodenum)]
+        for edge in edge_list:
+            for i in range(len(group)):
+                if edge[0] in group[i]:
+                    m = i
+                if edge[1] in group[i]:
+                    n = i
+            if m != n:
+                res.append(edge)
+                max_distance = max(max_distance, edge[2])
+                group[m] = group[m] + group[n]
+                group[n] = []
+        return max_distance
 
-最后，我想说的是，如果能解决低生育率问题，我相信中国在绝大部分技术领域取得领先地位只是时间问题。但按目前的趋势，时间并不站在我们一边；即使我们可以弯道超车，最终可能又会被别人反超。",时间并不站在我们一边，当初被别人忽悠瘸了，一步走错，满盘～～，如果按照这样的人口趋势，中国的未来注定不怎么光明，那就没有理由不采取行动，韩国有心无力，我党若是有心，亡羊补牢，为时未晚。国运啊，我们用3500万的代价换来的触底反弹，难道要在和平中断送,2024-06-28 23:50:29,http://weibo.com/3223014472/Ol7ye52sJ,山西
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] http://t.cn/A6QIlvUs,加油华为[心][心],2024-06-28 23:30:17,https://weibo.com/2030935042/OkiYi4BBq,
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] http://t.cn/A6QIlvUs,回复@願望已成真的白號子:关怀每一个细节，华为的进步值得点赞[加油],2024-06-28 23:11:34,https://weibo.com/2030935042/OkiYi4BBq,
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] [搞机王腾霄的微博视频](http://t.cn/A6QIlvUs),没华子的东西在手，暂时没去了解,2024-06-28 23:10:46,http://weibo.com/1088759052/Ol8z5aPcb,重庆市
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] [搞机王腾霄的微博视频](http://t.cn/A6QIlvUs),做好产品 做好国产系统 造福人类[嘻嘻],2024-06-28 23:07:20,http://weibo.com/6314162585/Ol8xGFnLe,广东
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] [搞机王腾霄的微博视频](http://t.cn/A6QIlvUs),希望能中一次[好喜欢],2024-06-28 23:05:07,http://weibo.com/2030935042/Ol8fyfbSa,河北
-今年华为HDC2024可以说看点颇丰，除纯血鸿蒙外，华为在无障碍功能方面的突破引起了我注意，通过“湖畔对谈”活动，了解到华为在无障碍方面的建设以及#鸿蒙NEXT帮助言语障碍者发声#，所以想借这个视频聊聊我的感受，大家可以看看[并不简单] http://t.cn/A6QIlvUs,转发微博,2024-06-28 23:02:22,https://weibo.com/2030935042/OkiYi4BBq,
-"四年前我对鸿蒙是谨慎乐观，现在则是非常看好。由于完全脱离了安卓，从底层构建，纯血鸿蒙的代码简洁性和系统性能都有显著提升。据称鸿蒙next比鸿蒙4.0性能提升30%，这相当于两代芯片的提升。
 
+n = int(input())
+point = []
+for i in range(n):
+    x, y = map(int, input().split())
+    point.append((x, y))
+# 计算point每个元素之前的最大距离
+maps = []
+for i in range(n):
+    distance = []
+    for j in range(n):
+        distance.append(math.sqrt((point[i][0] - point[j][0]) ** 2 + (point[i][1] - point[j][1]) ** 2))
+    maps.append(distance)
+graph = Graph(maps)
+max_distance = graph.kruskal()
+print(math.ceil(max_distance / 2))
