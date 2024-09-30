@@ -67,11 +67,11 @@ def get_access_token():
     return access_token
 
 
-def login():
+def login(username, password):
     global uuid
     global url
     access_token = get_access_token()
-    data = {"action":"functions.invokeFunction","env":"tcb-c2oi5qyp2ec73a-5dgr91ca774aa","dataVersion":"2019-08-16","function_name":"router","request_data":"{\"$url\":\"user/pub/login\",\"data\":{\"username\":\"huangaodong\",\"password\":\"234567\",\"needPermission\":true},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17274935478858643806\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17274935478858643806\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.24\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"}}","access_token": access_token,"seqId":"c100a2cdcfd97"}
+    data = {"action":"functions.invokeFunction","env":"tcb-c2oi5qyp2ec73a-5dgr91ca774aa","dataVersion":"2019-08-16","function_name":"router","request_data":"{\"$url\":\"user/pub/login\",\"data\":{\"username\":\"" + username + "\",\"password\":\"" + password + "\",\"needPermission\":true},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17274935478858643806\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17274935478858643806\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.24\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"}}","access_token": access_token,"seqId":"c100a2cdcfd97"}
     res = post_html(url, data).json()
     res = json.loads(res["data"]["response_data"])
     uuid = res["uid"]
@@ -258,10 +258,9 @@ def submit_question(course_module_id, code):
 
 
 if __name__ == '__main__':
-    uniIdToken = login()
-    # course_id = "7dc1d502651e30090561e36a53ec2587"
-    # get_course_modules(course_id)
-    code = """print("123")
-print("123123123")"""
+    uniIdToken = login("huangaodong", "234567")
+    course_id = "7dc1d502651e30090561e36a53ec2587"
+    get_course_modules(course_id)
+    code = """print("123")"""
     course_module_id = "233d13796551e82809fa63323430036e"
     submit_question(course_module_id, code)
