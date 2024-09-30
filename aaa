@@ -4,6 +4,7 @@
 import datetime
 import requests
 import re
+from DrissionPage import ChromiumPage
 import time
 import base64
 import csv
@@ -12,6 +13,7 @@ import random
 import pprint
 
 uniIdToken = ""
+uuid = ""
 url = "https://tcb-api.tencentcloudapi.com/web?env=tcb-c2oi5qyp2ec73a-5dgr91ca774aa"
 
 
@@ -36,15 +38,15 @@ def get_html(url):
 
 
 def post_html(url, data):
+    proxies = {
+        "http": "http://proxy.huawei.com:8080",
+        "https": "http://proxy.huawei.com:8080"
+    }
     if isinstance(data, dict):
-        res = requests.post(url, headers=get_headers(), json=data)
+        res = requests.post(url, headers=get_headers(), json=data, proxies=proxies, verify=False, timeout=10)
     else:
-        res = requests.post(url, headers=get_headers(), data=data)
+        res = requests.post(url, headers=get_headers(), data=data, proxies=proxies, verify=False, timeout=10)
     return res
-
-
-def save_data():
-    pass
 
 
 def encode_base64(s):
@@ -54,26 +56,35 @@ def encode_base64(s):
 
 def get_access_token():
     global url
-    time_stamp = 1727497169 # int(time.time())
-    access_json = {"data":"{\"loginType\":\"ANONYMOUS\",\"envName\":\"tcb-c2oi5qyp2ec73a-5dgr91ca774aa\",\"uuid\":\"0b1332e4b5c34d0e987ef0352f0c0b79\"}","iat": time_stamp,"exp": time_stamp + 3600}
-    access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + encode_base64(json.dumps(access_json, ensure_ascii=False).replace(" ", "")).decode('utf-8').strip("==") + ".Z9dGJN9YUU4Wr1toZEuVJZ6lASVZ_O9Q94ANzHK2R6Q;" + str(time_stamp - 85581)
+    data = {
+        "action": "auth.signInAnonymously", "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "seqId": "bd29c262608ac"
+    }
+    refresh_token = post_html(url, data).json()["refresh_token"]
+    data = {"action":"auth.fetchAccessTokenWithRefreshToken","env":"tcb-c2oi5qyp2ec73a-5dgr91ca774aa","dataVersion":"2019-08-16","refresh_token":refresh_token,"seqId":"bd29c262608ac"}
+    access_token = post_html(url, data).json()["access_token"]
     return access_token
 
 
 def login():
+    global uuid
+    global url
     access_token = get_access_token()
     data = {"action":"functions.invokeFunction","env":"tcb-c2oi5qyp2ec73a-5dgr91ca774aa","dataVersion":"2019-08-16","function_name":"router","request_data":"{\"$url\":\"user/pub/login\",\"data\":{\"username\":\"huangaodong\",\"password\":\"234567\",\"needPermission\":true},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17274935478858643806\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17274935478858643806\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.24\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"}}","access_token": access_token,"seqId":"c100a2cdcfd97"}
     res = post_html(url, data).json()
-    print(res)
-    return json.loads(res["data"]["response_data"])["token"]
+    res = json.loads(res["data"]["response_data"])
+    uuid = res["uid"]
+    return res["token"]
 
 
 def get_course_modules(course_id):
-    '''
+    """
     获取课程下所有模块
     :param course_id: 课程id
     :return:
-    '''
+    """
+    global url
     access_token = get_access_token()
     data = {
         "action": "functions.invokeFunction",
@@ -85,12 +96,172 @@ def get_course_modules(course_id):
         "seqId": "65b09fe5acb2d"
     }
     res = post_html(url, data).json()
+    res = res["data"]["response_data"]
+    res = json.loads(res)
+    course_name = res["course"]["name"]
+    courseSections = res["courseSections"]
+    for item in courseSections:
+        section_name = item["name"]
+        courseModules = item["courseModules"]
+        for module in courseModules:
+            module_id = module["module_id"]
+            if module_id == "question":
+                question_id = module["question_id"]
+                _id = module["_id"]
+                module_name = module["title"]
+                get_question_student_submits(question_id, _id, course_name, section_name, module_name)
+            elif module_id == "choice":
+                _id = module["_id"]
+                module_name = module["title"]
+                get_choice_student_submits(_id, course_name, section_name, module_name)
+            elif module_id == "exam":
+                _id = module["_id"]
+                exam_id = module["exam_id"]
+                module_name = module["title"]
+                get_exam_student_submits(exam_id, _id, course_name, section_name, module_name)
+
+
+def get_exam_student_submits(exam_id, course_module_id, course_name, section_name, module_name):
+    global url
+    access_token = get_access_token()
+    data = {
+        "action": "functions.invokeFunction", "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa", "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.getStudentExamSubmits\",\"data\":{\"formData\":{\"exam_id\":\"" + exam_id + "\",\"course_module_id\":\"" + course_module_id + "\"},\"columns\":[{\"key\":\"user.nickname\",\"title\":\"学生\",\"type\":\"text\",\"width\":150,\"mode\":\"%%\",\"lastWhereJson\":true,\"placeholder\":\"请输入学生昵称\"}],\"pageIndex\":1,\"pageSize\":100},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17276581573392670109\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17276581573392670109\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.28\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "8586f52ee0986"
+    }
+    res = post_html(url, data).json()
+    res = res["data"]["response_data"]
+    rows = json.loads(res)["rows"]
+    for row in rows:
+        examSubmit = row["examSubmit"]
+        status = examSubmit["status"]
+        if status:
+            score = examSubmit["score"]
+            attempt_start_time = examSubmit["start_time"]
+            attempt_end_time = examSubmit["end_time"]
+            time_ = (attempt_end_time - attempt_start_time) // 1000
+            attempt_start_time = datetime.datetime.fromtimestamp(attempt_start_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            attempt_end_time = datetime.datetime.fromtimestamp(attempt_end_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            user = row["user"]
+            nickname = user["nickname"]
+            print(course_name, section_name, module_name, nickname, attempt_start_time, attempt_end_time, time_, "已提交", score)
+        else:
+            attempt_start_time = examSubmit["start_time"]
+            attempt_start_time = datetime.datetime.fromtimestamp(attempt_start_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            time_ = 0
+            score = 0
+            user = row["user"]
+            nickname = user["nickname"]
+            print(course_name, section_name, module_name, nickname, attempt_start_time, "", time_, "进行中", score)
+
+
+def get_choice_student_submits(course_module_id, course_name, section_name, module_name):
+    global url
+    access_token = get_access_token()
+    data = {
+        "action": "functions.invokeFunction",
+        "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.getStudentCsubmits\",\"data\":{\"formData\":{\"course_module_id\":\"" + course_module_id + "\"},\"columns\":[{\"key\":\"user.nickname\",\"title\":\"学生\",\"type\":\"text\",\"width\":150,\"mode\":\"%%\",\"lastWhereJson\":true,\"placeholder\":\"请输入学生昵称\"}],\"pageIndex\":1,\"pageSize\":100},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17276581573392670109\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17276581573392670109\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.28\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "8586f52ee0986"
+    }
+    res = post_html(url, data).json()
+    print(res)
+    res = res["data"]["response_data"]
+    rows = json.loads(res)["rows"]
+    for row in rows:
+        status = row["status"]
+        if status:
+            question_count = row.get("question_count")
+            correct_count = row.get("correct_count")
+            attempt_start_time = row["attempt_start_time"]
+            attempt_end_time = row["attempt_end_time"]
+            time_ = (attempt_end_time - attempt_start_time) // 1000
+            attempt_start_time = datetime.datetime.fromtimestamp(attempt_start_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            attempt_end_time = datetime.datetime.fromtimestamp(attempt_end_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            score = (correct_count / question_count) * 100
+            user = row["user"]
+            nickname = user["nickname"]
+            print(course_name, section_name, module_name, nickname, attempt_start_time, attempt_end_time, time_, "已提交", score)
+        else:
+            attempt_start_time = row["attempt_start_time"]
+            attempt_start_time = datetime.datetime.fromtimestamp(attempt_start_time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            time_ = 0
+            score = 0
+            user = row["user"]
+            nickname = user["nickname"]
+            print(course_name, section_name, module_name, nickname, attempt_start_time, "", time_, "进行中", score)
+
+
+def get_question_student_submits(question_id, course_module_id, course_name, section_name, module_name):
+    global url
+    access_token = get_access_token()
+    data = {
+        "action": "functions.invokeFunction",
+        "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.getMyQuestionStudentSubmits\",\"data\":{\"formData\":{\"question_id\":\"" + question_id + "\",\"course_module_id\":\"" + course_module_id + "\"},\"columns\":[{\"key\":\"user.nickname\",\"title\":\"学生\",\"type\":\"text\",\"width\":150,\"mode\":\"%%\",\"lastWhereJson\":true,\"placeholder\":\"请输入学生昵称\"}],\"pageIndex\":1,\"pageSize\":100},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17276581573392670109\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17276581573392670109\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.28\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "8586f52ee0986"
+    }
+    res = post_html(url, data).json()["data"]["response_data"]
+    rows = json.loads(res)["rows"]
+    for row in rows:
+        _add_time_str = row["_add_time_str"]
+        try:
+            source_code = row["source_code"]
+        except:
+            source_code = ""
+        attempt_status = row["attempt_status"]
+        if attempt_status == 1:
+            status = "Accepted"
+        else:
+            status = "Unaccepted"
+        user = row["user"]
+        nickname = user["nickname"]
+        print(course_name, section_name, module_name, nickname, status, source_code)
+
+
+def submit_question(course_module_id, code):
+    global url
+    access_token = get_access_token()
+    data = {
+        "action": "functions.invokeFunction",
+        "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.findCourseModuleQuestionAndSubmitById\",\"data\":{\"course_module_id\":\"" + course_module_id + "\"},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17276814040605017702\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17276814040605017702\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.28\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "8586f52ee0986"
+    }
+    res = post_html(url, data).json()["data"]["response_data"]
+    res = json.loads(res)
+    qSubmit_id = res["submit"]["_id"]
+    code = code.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\r\\n")
+    data = {
+        "action": "functions.invokeFunction",
+        "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.updateQuestionAttemptSrc\",\"data\":{\"qSubmit_id\":\"" + qSubmit_id + "\",\"source_code\":\"" + code + "\"},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17276814040605017702\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17276814040605017702\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.28\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "8586f52ee0986"
+    }
+    print(data)
+    res = post_html(url, data).json()
     print(res)
 
 
 if __name__ == '__main__':
     uniIdToken = login()
-    get_course_modules("b787f7c366701e380311669630bd5aa4")
-
-
-
+    # course_id = "7dc1d502651e30090561e36a53ec2587"
+    # get_course_modules(course_id)
+    code = """print("123")
+print("123123123")"""
+    course_module_id = "233d13796551e82809fa63323430036e"
+    submit_question(course_module_id, code)
