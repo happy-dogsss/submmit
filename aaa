@@ -1,32 +1,96 @@
-from collections import defaultdict
+# -*- coding:utf-8 -*-
+# @Author: pioneer
+# @Environment: Python 3.9
+import datetime
+import requests
+import re
+import time
+import base64
+import csv
+import json
+import random
+import pprint
+
+uniIdToken = ""
+url = "https://tcb-api.tencentcloudapi.com/web?env=tcb-c2oi5qyp2ec73a-5dgr91ca774aa"
 
 
-def count_nodes_with_xor_value(root, graph, k):
-    
-
-    xor_value = {}
-    count = defaultdict(int)
-
-    def dfs(node, parent, current_xor):
-        xor_value[node] = current_xor
-        count[current_xor] += 1
-        for neighbor, weight in graph[node]:
-            if neighbor != parent:
-                dfs(neighbor, node, current_xor ^ weight)
-
-    dfs(root, -1, 0)
-
-    target_xor = xor_value[root] ^ k
-    return count[target_xor]
+def get_headers():
+    time_stamp = time.time()
+    headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+        "x-sdk-version": "1.3.5",
+        "x-seqid": "c100a2cdcfd97",
+        "origin": "https://studio.aicode123.com",
+        "referer": "https://studio.aicode123.com/",
+        "x-tcb-trace": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + encode_base64("""{"uuid":"0b1332e4b5c34d0e987ef0352f0c0b79","lastReportTime":""" + str(time_stamp * 1000 + 234) + ""","iat":""" + str(time_stamp) + """}""").decode('utf-8').strip("==") + ".xMAOGMW1ErWVJUxPt-rvWUqWTD5-H6MV4s_ZutfYsp4"
+    }
+    return headers
 
 
-graph = defaultdict(list)
-n, q = map(int, input().split())
-for i in (n - 1):
-    u, v, w = map(int, input().split())
-    graph[u].append((v, w))
-    graph[v].append((u, w))
+# 获取网页源码的文本文件
+def get_html(url):
+    response = requests.get(url, headers=get_headers(), timeout=20)
+    response.close()
+    return response
 
-for i in range(q):
-    root, k = map(int, input().split())
-    print(count_nodes_with_xor_value(root, graph, k))
+
+def post_html(url, data):
+    if isinstance(data, dict):
+        res = requests.post(url, headers=get_headers(), json=data)
+    else:
+        res = requests.post(url, headers=get_headers(), data=data)
+    return res
+
+
+def save_data():
+    pass
+
+
+def encode_base64(s):
+    s = base64.b64encode(s.encode('utf-8'))
+    return s
+
+
+def get_access_token():
+    global url
+    time_stamp = 1727497169 # int(time.time())
+    access_json = {"data":"{\"loginType\":\"ANONYMOUS\",\"envName\":\"tcb-c2oi5qyp2ec73a-5dgr91ca774aa\",\"uuid\":\"0b1332e4b5c34d0e987ef0352f0c0b79\"}","iat": time_stamp,"exp": time_stamp + 3600}
+    access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + encode_base64(json.dumps(access_json, ensure_ascii=False).replace(" ", "")).decode('utf-8').strip("==") + ".Z9dGJN9YUU4Wr1toZEuVJZ6lASVZ_O9Q94ANzHK2R6Q;" + str(time_stamp - 85581)
+    return access_token
+
+
+def login():
+    access_token = get_access_token()
+    data = {"action":"functions.invokeFunction","env":"tcb-c2oi5qyp2ec73a-5dgr91ca774aa","dataVersion":"2019-08-16","function_name":"router","request_data":"{\"$url\":\"user/pub/login\",\"data\":{\"username\":\"huangaodong\",\"password\":\"234567\",\"needPermission\":true},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17274935478858643806\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17274935478858643806\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.24\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"}}","access_token": access_token,"seqId":"c100a2cdcfd97"}
+    res = post_html(url, data).json()
+    print(res)
+    return json.loads(res["data"]["response_data"])["token"]
+
+
+def get_course_modules(course_id):
+    '''
+    获取课程下所有模块
+    :param course_id: 课程id
+    :return:
+    '''
+    access_token = get_access_token()
+    data = {
+        "action": "functions.invokeFunction",
+        "env": "tcb-c2oi5qyp2ec73a-5dgr91ca774aa",
+        "dataVersion": "2019-08-16",
+        "function_name": "router",
+        "request_data": "{\"$url\":\"admin/course/mycourse.getCourse\",\"data\":{\"course_id\":\"" + course_id + "\",\"course_version\":\"\"},\"clientInfo\":{\"PLATFORM\":\"web\",\"OS\":\"windows\",\"APPID\":\"__UNI__D2551D1\",\"DEVICEID\":\"17274935478858643806\",\"scene\":1001,\"appId\":\"__UNI__D2551D1\",\"appLanguage\":\"zh-Hans\",\"appName\":\"aicode123v2-studio\",\"appVersion\":\"1.0.0\",\"appVersionCode\":\"100\",\"browserName\":\"chrome\",\"browserVersion\":\"129.0.0.0\",\"deviceId\":\"17274935478858643806\",\"deviceModel\":\"PC\",\"deviceType\":\"pc\",\"hostName\":\"chrome\",\"hostVersion\":\"129.0.0.0\",\"osName\":\"windows\",\"osVersion\":\"10 x64\",\"ua\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36\",\"uniPlatform\":\"web\",\"uniRuntimeVersion\":\"4.24\",\"locale\":\"zh-Hans\",\"LOCALE\":\"zh-Hans\"},\"uniIdToken\":\"" + uniIdToken + "\"}",
+        "access_token": access_token,
+        "seqId": "65b09fe5acb2d"
+    }
+    res = post_html(url, data).json()
+    print(res)
+
+
+if __name__ == '__main__':
+    uniIdToken = login()
+    get_course_modules("b787f7c366701e380311669630bd5aa4")
+
+
+
