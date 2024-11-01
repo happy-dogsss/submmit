@@ -1,216 +1,38 @@
-# -*- coding:utf-8 -*-
-# @Author: pioneer
-# @Environment: Python 3.9
-import os
-import time
-from DrissionPage import ChromiumPage
-from PIL import Image
-import requests
-import re
-import base64
-import json
-import random
-from configparser import ConfigParser
-import mammoth
-from tqdm import tqdm
+#include <bits/stdc++.h>
+using ll = long long;
+using namespace std;
 
+signed main(){
+    ll n , l , r;
+    cin >> n >> l >> r;
+    vector<ll> nl(n + 1),nr(n + 1);
+	for(int i = 1 ; i <= n ; ++i) cin >> nl[i];
+	for(int i = 1 ; i <= n ; ++i) cin >> nr[i];
+	
+	sort(nl.begin(),nl.end());
+	sort(nr.begin(),nr.end());
 
-# 获取网页源码的文本文件
-def get_html(url):
-    response = requests.get(url, timeout=20)
-    response.close()
-    return response
-
-
-def post_html(url, data):
-    data = json.dumps(data, ensure_ascii=False).encode('utf-8')
-    res = requests.post(url, data=data)
-    return res
-
-
-def get_access_token(appid, secret):
-    url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={}&secret={}".format(appid, secret)
-    res = get_html(url).json()
-    access_token = res["access_token"]
-    return access_token
-
-
-def add_material(img, ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/material/add_material?type=image&access_token=" + ACCESS_TOKEN
-    base64_img = re.findall("data:image/(.*?);base64,(.*?)$", img)[0]
-    decoded_bytes = base64.b64decode(base64_img[1])
-    binary_data = bytes(decoded_bytes)
-    with open("temp." + base64_img[0], "wb") as f:
-        f.write(binary_data)
-    image = Image.open("temp." + base64_img[0])
-    image.save("temp.jpg", "JPEG")
-    files = {'media': open("temp.jpg", 'rb')}
-    media_id = requests.post(url, files=files).json()["media_id"]
-    return media_id
-
-
-def media_upload(img, ACCESS_TOKEN):
-    base64_img = re.findall("data:image/(.*?);base64,(.*?)$", img)[0]
-    url = "https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token=" + ACCESS_TOKEN
-    decoded_bytes = base64.b64decode(base64_img[1])
-    binary_data = bytes(decoded_bytes)
-    with open("temp." + base64_img[0], "wb") as f:
-        f.write(binary_data)
-    image = Image.open("temp." + base64_img[0])
-    image.save("temp.jpg", "JPEG")
-    files = {'p_w_picpath': open("temp.jpg", 'rb')}
-    url = requests.post(url, files=files).json()["url"]
-    return url
-
-
-def batchget_material(ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/material/batchget_material?access_token=" + ACCESS_TOKEN
-    data = {
-        "type": "image",
-        "offset": 0,
-        "count": 20
-    }
-    res = post_html(url, data).json()
-    media = random.choice(res["item"])
-    media_id = media["media_id"]
-    return media_id
-
-
-def add(TITLE, AUTHOR, DIGEST, CONTENT, THUMB_MEDIA_ID, ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/draft/add?access_token=" + ACCESS_TOKEN
-    data = {
-        "articles": [
-            {
-                "title": TITLE,
-                "author": AUTHOR,
-                "digest": DIGEST,
-                "content": CONTENT,
-                "thumb_media_id": THUMB_MEDIA_ID,
-                "need_open_comment": 0,
-                "only_fans_can_comment": 0,
-            }
-        ]
-    }
-    res = post_html(url, data).json()
-    media_id = res["media_id"]
-    return media_id
-
-
-def submit_old(MEDIA_ID, ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token=" + ACCESS_TOKEN
-    data = {
-        "media_id": MEDIA_ID
-    }
-    res = post_html(url, data).json()
-    errmsg = res["errmsg"]
-    return errmsg
-
-
-def doc2html():
-    file_list = os.listdir("doc")
-    for file in tqdm(file_list):
-        with open("doc/" + file, 'rb') as docx_fd:
-            result = mammoth.convert_to_html(docx_fd)
-            html_content = result.value
-        with open("html/" + file.split(".")[0] + ".html", 'w', encoding='utf-8') as html_fd:
-            html_fd.write(html_content)
-
-
-def delete(MEDIA_ID, ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/draft/delete?access_token=" + ACCESS_TOKEN
-    data = {
-        "media_id": MEDIA_ID
-    }
-    res = post_html(url, data).json()
-    errmsg = res["errmsg"]
-    return errmsg
-
-
-def batchget(ACCESS_TOKEN):
-    url = "https://api.weixin.qq.com/cgi-bin/draft/batchget?access_token=" + ACCESS_TOKEN
-    data = {
-        "offset": 0,
-        "count": 20,
-        "no_content": 1
-    }
-    res = post_html(url, data).json()["item"]
-    media_id_ls = [i["media_id"] for i in res]
-    return media_id_ls
-
-
-def submit(page):
-    num = 0
-    while True:
-        page.get("https://mp.weixin.qq.com/cgi-bin/loginpage")
-        try:
-            page.ele('xpath://*[@id="appmsg_publish_record"]/div[1]').hover()
-            page.ele('xpath://*[@id="appmsg_publish_record"]/div[1]/div[2]/div/span/a').click()
-        except:
-            break
-        tab = page.latest_tab
-        tab.wait(3)
-        tab.ele('xpath://*[@id="vue_app"]/div[2]/div[1]/div[1]/div/div[3]/div/div/div[1]/button').click()
-        tab.wait(1)
-        tab.ele('xpath://*[@id="vue_app"]/div[2]/div[2]/div[1]/div/div[3]/div/div[1]/button').click()
-        tab.wait(10)
-        tab.close()
-        num += 1
-        print("已发布{}篇文章".format(num))
-
-
-if __name__ == '__main__':
-    print("正在打开浏览器")
-    page = ChromiumPage()
-    page.get("https://mp.weixin.qq.com/cgi-bin/loginpage")
-    page.set.window.max()
-    # page.wait.title_change("公众号", timeout=1000000)
-    print("浏览器打开完成")
-    if not os.path.exists("html"):
-        os.mkdir("html")
-
-    print("读取配置文件")
-    # 创建 ConfigParser 对象
-    config = ConfigParser()
-
-    # 读取配置文件
-    config.read('config.ini', encoding="utf-8")
-    official_account_list = list(config.keys())[1:]
-
-    print("word文件解析")
-    doc2html()
-    n = 0
-    html_list = os.listdir("html")
-    try:
-        for official_account in official_account_list:
-            appid = config[official_account]["appid"]
-            secret = config[official_account]["secret"]
-            print("发表文章到草稿箱")
-            content = ""
-            media_id = ""
-            for html_file in tqdm(html_list):
-                ACCESS_TOKEN = get_access_token(appid, secret)
-                if n == 0:
-                    with open("html/" + html_file, 'r', encoding='utf-8') as html_fd:
-                        content = html_fd.read()
-                    n = 1
-                    img_ls = re.findall('<img alt=".*?" src="(.*?)" />', content)
-                    img_ls = list(set(img_ls))
-                    if img_ls:
-                        media_id = add_material(img_ls[0], ACCESS_TOKEN)
-                    else:
-                        media_id = batchget_material(ACCESS_TOKEN)
-                    for img in img_ls:
-                        img_url = media_upload(img, ACCESS_TOKEN)
-                        content = content.replace(img, img_url)
-                        time.sleep(1)
-                os.remove("html/" + html_file)
-                title = html_file.split(".")[0]
-                content_id = add(title, "", "", content, media_id, ACCESS_TOKEN)
-                time.sleep(5)
-        print("开始通过网页发表文章")
-        submit(page)
-        input("文章发表完成")
-    except Exception as e:
-        print(e)
-        input("")
-
+	auto check = [&](ll v){
+		ll lo = 1 , hi = 0x3f3f3f3f3f3f3f3f;
+		while(lo < hi){
+			ll mid = (lo + hi) >> 1;
+			ll num = 0;
+			for(int i = 1 ; i <= n ; ++i){
+				num += (lower_bound(nr.begin(),nr.end(),mid - nl[i] - 1) - nr.begin());
+			}
+			if(num < v) lo = mid + 1;
+			else hi = mid;
+		}
+		return lo;
+	};
+	ll cl = check(l) , cr = check(r);
+	vector<ll> ans;
+	for(int i = 1 ; i <= n ; ++i){
+		int lpos = lower_bound(nr.begin(),nr.end(),cl - nl[i]) - nr.begin();
+		int rpos = lower_bound(nr.begin(),nr.end(),cr - nl[i]) - nr.begin();
+		for(int j = max(1,lpos) ; j <= min((int)n,rpos) ; ++j) ans.emplace_back(nl[i] + nr[j]);
+	}
+	sort(ans.begin(),ans.end());
+	for(int i = 0 ; i < (r - l + 1) ; ++i) cout << ans[i] << ' ';
+	
+}
